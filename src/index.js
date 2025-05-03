@@ -15,6 +15,7 @@ function Main(){
 
     const usernameArg = args.find((arg) => arg.startsWith('--username'));
     const username = usernameArg ? usernameArg.split('=')[1] : 'Username';
+    
 
 
     let Dir = homedir();    
@@ -46,13 +47,18 @@ function Main(){
 
         child.on('message', (data)=> {
             if(data.type === 'output'){
-                console.log(data.massage);
-                printDir();
-            }else if(data.type === 'cd'){
-                Dir = data.newDir;
-                printDir();
+                if(data.message.trim() !== ''){
+                    console.log(data.message);
+                }
                 
             }
+             if(data.type === 'cd'){
+                Dir = data.newDir;
+               
+                
+            }
+            printDir();
+            
         })
 
 
