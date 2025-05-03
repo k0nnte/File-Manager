@@ -1,5 +1,6 @@
 const { resolve, dirname, join, basename } = require('path')
 const fs = require('fs');
+const os = require('os');
 
 function child(){
  process.on('message', ({command, Dir}) => {
@@ -247,6 +248,48 @@ function child(){
               }
             })
             break;
+          }
+
+          case 'os' : {
+           switch (args[0]){
+            case '--EOL': {
+              const eol = JSON.stringify(os.EOL)
+              process.send({type: 'output', message: eol});
+              break;
+            }
+            case '--cpus': {
+              const cpus = os.cpus();
+              const count = cpus.length;
+
+              let rez = `Total CPUs: ${count}\n`;
+
+              cpus.forEach((cpu, index)=> {
+                rez += `CPU ${index+1}: ${cpu.model} on ${cpu.speed / 1000} GHZ\n`;
+              })
+              process.send({type: 'output', message: rez});
+             
+              break;
+            }
+            case '--homedir': {
+              const home = os.homedir();
+              process.send({type: 'output', message: home});
+              break;
+              
+            }
+            case '--username': {
+              const username = os.userInfo().username;
+              process.send({type: 'output', message: username});
+              break;
+            }
+            case '--architecture': {
+              const architecture = process.arch;
+              process.send({type: 'output', message: architecture});
+              break;
+            }
+            default:
+              process.send({type: 'output', message:'Invalid input'})
+           }
+           break;
           }
 
           default: 

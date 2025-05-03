@@ -19,7 +19,6 @@ function Main(){
 
 
     let Dir = homedir();    
-    const initDir = Dir;
     
     console.log(`Welcome to the File Manager, ${username}!`);
     printDir();
