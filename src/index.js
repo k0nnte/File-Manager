@@ -46,7 +46,7 @@ function Main(){
 
         child.on('message', (data)=> {
             if(data.type === 'output'){
-                if(data.message.trim() !== ''){
+                if(data.message !== ''){
                     console.log(data.message);
                 }
                 

@@ -1,6 +1,8 @@
-const { resolve, dirname, join, basename } = require('path')
+const { resolve, dirname, join, basename, parse } = require('path')
 const fs = require('fs');
 const os = require('os');
+const cripty = require('crypto');
+const { Worker } = require('worker_threads');
 
 function child(){
  process.on('message', ({command, Dir}) => {
@@ -290,6 +292,104 @@ function child(){
               process.send({type: 'output', message:'Invalid input'})
            }
            break;
+          }
+
+          case 'hash': {
+            const file = resolve(Dir, args.join(' '));
+
+            if(!fs.existsSync(file) || !fs.statSync(file).isFile()){
+              process.send({type: 'output', message:'Invalid input'})
+              break;
+            }
+
+            const hash = cripty.createHash('sha256');
+            const stream = fs.createReadStream(file);
+
+            stream.on('data', (chunk)=> {
+              hash.update(chunk);
+            })
+
+            stream.on('end', ()=> {
+              const rez = hash.digest('hex');
+              process.send({type: 'output', message: rez});
+            })
+
+            stream.on('error', ()=> {
+              process.send({type: 'output', message: 'Operation failed'});
+            })
+            break;
+          }
+
+          case 'compress': {
+            if(args.length < 1){
+              process.send({type: 'output', message:'Invalid input'})
+              break;
+            }
+            const file = resolve(Dir, args[0]);
+            
+            const comp = resolve(Dir, args[1] ? args[1] : '', `${args[0]}.br`);
+            
+            
+
+            if(!fs.existsSync(file)){
+              process.send({type: 'output', message:'Invalid input'})
+            }
+            const worlerPath = resolve(__dirname, 'worker_Compress.js');
+            const work = new Worker(worlerPath, {
+              workerData: {filePath: file, comp, mode: 'compress'},
+            });
+
+            work.on('message', (ms)=> {
+              if(ms.status === 'ok'){
+                process.send({type: 'output', message:''})
+              }else{
+                process.send({type: 'output', message: 'Operation failed'});
+              }
+              
+            });
+
+            work.on('error', ()=> {
+              process.send({type: 'output', message: 'Operation failed'});
+            })
+
+            break;
+            
+
+          }
+          case 'decompress': {
+            if(args.length < 1){
+              process.send({type: 'output', message:'Invalid input'})
+              break;
+            }
+            const compres = resolve(Dir, args[0]);
+            if(!fs.existsSync(compres)){
+              process.send({type: 'output', message:'Invalid input'})
+            }
+            
+            const file = resolve(Dir, args[1] ? args[1] : '', `${args[0].slice(0, -3)}`);
+            console.log(file);
+            
+            const worlerPath = resolve(__dirname, 'worker_Compress.js');
+            const work = new Worker(worlerPath, {
+              workerData: {filePath: file, comp: compres, mode: 'decompress'},
+            });
+
+            work.on('message', (ms)=> {
+              if(ms.status === 'ok'){
+                process.send({type: 'output', message:''})
+              }else{
+                process.send({type: 'output', message: 'Operation failed'});
+              }
+              
+            });
+
+            work.on('error', ()=> {
+              process.send({type: 'output', message: 'Operation failed'});
+            })
+
+            break;
+
+
           }
 
           default: 
