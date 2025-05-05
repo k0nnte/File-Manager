@@ -1,8 +1,10 @@
+import {parentPort, workerData} from 'worker_threads';
+import fs from 'fs';
+import zlib from 'zlib';
+
+ 
 
 function worker_compress() {
-    const {parentPort, workerData} = require('worker_threads');
-    const fs = require('fs');
-    const zlib = require('zlib');
     const {filePath, comp, mode } = workerData;
         
    

@@ -1,8 +1,27 @@
-const { resolve, dirname, join, basename, parse } = require('path')
-const fs = require('fs');
-const os = require('os');
-const cripty = require('crypto');
-const { Worker } = require('worker_threads');
+
+import {resolve, dirname, join, basename, } from 'path'
+import fs from 'fs';
+import osi from '../src/modules/osi.js';
+import cripty from 'crypto';
+import {Worker } from 'worker_threads';
+import { fileURLToPath } from 'url';
+import up from './modules/up.js';
+import cd from './modules/cd.js';
+import ls from './modules/ls.js';
+import cat from './modules/cat.js';
+import add from './modules/add.js';
+import mkdir from './modules/mkdir.js';
+import rn from './modules/rn.js';
+import cp from './modules/cp.js';
+import mv from './modules/mv.js';
+import rm from './modules/rm.js';
+import hashi from './modules/hashi.js';
+import compress from './modules/compress.js';
+import decompress from './modules/decompress.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 
 function child(){
  process.on('message', ({command, Dir}) => {
@@ -10,382 +29,98 @@ function child(){
     try{
         switch(cmd){
           case 'up': {
-          const parentDir = resolve(Dir, '..');
-          if(   fs.existsSync(parentDir) &&
-          fs.statSync(parentDir).isDirectory()){  
-            process.send({type: 'cd', newDir: parentDir})
-          }else{
-            process.send({type: 'cd', newDir: Dir})
-          }
+          up(Dir,process.send.bind(process));
+          
+    
           break;
         }
           case 'cd': {
-            const target = args.join(' ');
-            const newPath = target.startsWith('/') ? resolve(target) : resolve(Dir, target);
-            
-            if(
-              fs.existsSync(newPath) &&
-              fs.statSync(newPath).isDirectory()
-            ){
-              process.send({type: 'cd', newDir: newPath})
-            }else{
-              process.send({type: 'output', message:'Operation failed'})
-            }
+     
+            cd(Dir,args,process.send.bind(process));
             
            break; 
           }
 
           case 'ls': {
-            const item = fs.readdirSync(Dir, {withFileTypes: true});
-
-            const rez = item.map(i => {
-              const isDir = i.isDirectory();
-              return{
-                name: i.name,
-                type: isDir ? 'directory' : 'file',
-              }
-            })
-
-            const sortItem = rez.sort((a,b)=> {
-              if(a.type !== b.type){
-                return a.type === 'directory' ? -1 : 1;
-              }
-              return a.name.localeCompare(b.name);
-            } )
-            console.table(sortItem)
-            process.send({type: 'output', message: ''});
-
+       
+            ls(Dir,process.send.bind(process));
             break;
           }
           case 'cat': {
-            const filePath = resolve(Dir, args.join(' '));
-            
-
-            if(!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            const readStream = fs.createReadStream(filePath, {encoding: 'utf-8'});
-            let empty = true;
-            readStream.on('data', (chunk)=> {
-              empty = false;
-              process.send({type: 'output', message: chunk});
-            })
-
-            readStream.on('end', ()=> {
-              if(empty){
-                process.send({type: 'output', message: ''});
-              }
-            })
-
-            readStream.on('error', ()=> {
-              process.send({type: 'output', message: 'Operation failed'});
-            })
-            
+           
+            cat(Dir, args, process.send.bind(process));
             
             break;
           }
 
           case 'add': {
 
-            const filePath = resolve(Dir, args.join(' '));
-            if(fs.existsSync(filePath)){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
+           
 
-            fs.writeFile(filePath, '', 'utf-8', (err)=> {
-              if(err){
-                process.send({type: 'output', message: 'Operation failed'});
-              }else{
-                process.send({type: 'output', message: ''});
-              }
-            })
+            add(Dir, args, process.send.bind(process));
 
             break;
           }
 
           case 'mkdir' : {
         
-            const dirpath = resolve(Dir, args.join(' '));
-
-            if(fs.existsSync(dirpath)){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            try{
-              fs.mkdirSync(dirpath);
-              process.send({type: 'output', message: ''});
-            }catch{
-              process.send({type: 'output', message: 'Operation failed'});
-            }
+         
 
            
-            
+            mkdir(Dir, args, process.send.bind(process));
             break;
           }
 
           case 'rn': {
-            if(args.length < 2){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-            const old = resolve(Dir, args[0]);
-            const fileName = args[1];
-
-            const newPath = join(dirname(old), fileName);
-
-            try{
-              fs.renameSync(old, newPath);
-              process.send({type: 'output', message: ''});
-              break
-            }catch{
-              process.send({type: 'output', message: 'Operation failed'});
-            }
+         
+            rn(Dir, args, process.send.bind(process));
             break;
 
           }
 
           case 'cp': {
-            if(args.length < 2){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            const firstPath = resolve(Dir, args[0]);
-            const secondDir = resolve(Dir, args[1]);
-            const cp = join(secondDir, basename(firstPath));
           
-            if(
-              !fs.existsSync(firstPath) ||
-              !fs.statSync(firstPath).isFile() ||
-              !fs.existsSync(secondDir) ||
-              !fs.statSync(secondDir).isDirectory()
-            ){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            const read = fs.createReadStream(firstPath);
-            const write = fs.createWriteStream(cp);
-            
-            read.pipe(write);
-
-            write.on('close', ()=> {
-              process.send({type: 'output', message: ''});
-            })
-            write.on('error', ()=> {
-              process.send({type: 'output', message: 'Operation failed'});
-            })
+            cp(Dir, args, process.send.bind(process));
 
             break;
           }
 
           case 'mv': {
-            if(args.length < 2){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            const firstPath = resolve(Dir, args[0]);
-            const secondDir = resolve(Dir, args[1]);
-            const file = join(secondDir, basename(firstPath));
-
-            if(
-              !fs.existsSync(firstPath) ||
-              !fs.statSync(firstPath).isFile() ||
-              !fs.existsSync(secondDir) ||
-              !fs.statSync(secondDir).isDirectory()
-            ){
-
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            const read = fs.createReadStream(firstPath);
-            const write = fs.createWriteStream(file);
-
-            read.pipe(write);
-
-            read.on('error', ()=> {
-
-              process.send({type: 'output', message: 'Operation failed'});
-            
-            })
-            write.on('error', ()=> {
-              process.send({type: 'output', message: 'Operation failed'});
-            })
-
-            write.on('close', ()=> {
-              fs.unlink(firstPath, (err)=> {
-                if(err){
-                  process.send({type: 'output', message: 'Operation failed'});
-                }else{
-                  process.send({type: 'output', message: ''});
-                }
-              })
-            })
-
+           
+            mv(Dir, args, process.send.bind(process));
 
             break;
           }
 
           case 'rm': {
-            const fileDel = resolve(Dir, args[0]);
-
-            if(!fs.existsSync(fileDel) || !fs.statSync(fileDel).isFile()){
-              process.send({type: 'output', message: 'Invalid input'});
-              break;
-            }
-
-            fs.unlink(fileDel, (err)=> {
-              if(err){
-                process.send({type: 'output', message: 'Operation failed'});
-                
-              }else{
-                process.send({type: 'output', message: ''});
-                
-              }
-            })
+           
+            rm(Dir, args, process.send.bind(process));
             break;
           }
 
           case 'os' : {
-           switch (args[0]){
-            case '--EOL': {
-              const eol = JSON.stringify(os.EOL)
-              process.send({type: 'output', message: eol});
-              break;
-            }
-            case '--cpus': {
-              const cpus = os.cpus();
-              const count = cpus.length;
-
-              let rez = `Total CPUs: ${count}\n`;
-
-              cpus.forEach((cpu, index)=> {
-                rez += `CPU ${index+1}: ${cpu.model} on ${cpu.speed / 1000} GHZ\n`;
-              })
-              process.send({type: 'output', message: rez});
-             
-              break;
-            }
-            case '--homedir': {
-              const home = os.homedir();
-              process.send({type: 'output', message: home});
-              break;
-              
-            }
-            case '--username': {
-              const username = os.userInfo().username;
-              process.send({type: 'output', message: username});
-              break;
-            }
-            case '--architecture': {
-              const architecture = process.arch;
-              process.send({type: 'output', message: architecture});
-              break;
-            }
-            default:
-              process.send({type: 'output', message:'Invalid input'})
-           }
+        
+          osi(args, process.send.bind(process));
            break;
           }
 
           case 'hash': {
-            const file = resolve(Dir, args.join(' '));
-
-            if(!fs.existsSync(file) || !fs.statSync(file).isFile()){
-              process.send({type: 'output', message:'Invalid input'})
-              break;
-            }
-
-            const hash = cripty.createHash('sha256');
-            const stream = fs.createReadStream(file);
-
-            stream.on('data', (chunk)=> {
-              hash.update(chunk);
-            })
-
-            stream.on('end', ()=> {
-              const rez = hash.digest('hex');
-              process.send({type: 'output', message: rez});
-            })
-
-            stream.on('error', ()=> {
-              process.send({type: 'output', message: 'Operation failed'});
-            })
+           
+            hashi(Dir, args, process.send.bind(process));
             break;
           }
 
           case 'compress': {
-            if(args.length < 1){
-              process.send({type: 'output', message:'Invalid input'})
-              break;
-            }
-            const file = resolve(Dir, args[0]);
-            
-            const comp = resolve(Dir, args[1] ? args[1] : '', `${args[0]}.br`);
-            
-            
-
-            if(!fs.existsSync(file)){
-              process.send({type: 'output', message:'Invalid input'})
-            }
-            const worlerPath = resolve(__dirname, 'worker_Compress.js');
-            const work = new Worker(worlerPath, {
-              workerData: {filePath: file, comp, mode: 'compress'},
-            });
-
-            work.on('message', (ms)=> {
-              if(ms.status === 'ok'){
-                process.send({type: 'output', message:''})
-              }else{
-                process.send({type: 'output', message: 'Operation failed'});
-              }
-              
-            });
-
-            work.on('error', ()=> {
-              process.send({type: 'output', message: 'Operation failed'});
-            })
+        
+            compress(Dir, args, process.send.bind(process));
 
             break;
             
 
           }
           case 'decompress': {
-            if(args.length < 1){
-              process.send({type: 'output', message:'Invalid input'})
-              break;
-            }
-            const compres = resolve(Dir, args[0]);
-            if(!fs.existsSync(compres)){
-              process.send({type: 'output', message:'Invalid input'})
-            }
-            
-            const file = resolve(Dir, args[1] ? args[1] : '', `${args[0].slice(0, -3)}`);
-            console.log(file);
-            
-            const worlerPath = resolve(__dirname, 'worker_Compress.js');
-            const work = new Worker(worlerPath, {
-              workerData: {filePath: file, comp: compres, mode: 'decompress'},
-            });
-
-            work.on('message', (ms)=> {
-              if(ms.status === 'ok'){
-                process.send({type: 'output', message:''})
-              }else{
-                process.send({type: 'output', message: 'Operation failed'});
-              }
-              
-            });
-
-            work.on('error', ()=> {
-              process.send({type: 'output', message: 'Operation failed'});
-            })
+    
+            decompress(Dir, args, process.send.bind(process))
 
             break;
 

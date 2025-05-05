@@ -1,10 +1,12 @@
 
-const { homedir } = require('os');
-const {  resolve } = require('path');
-const { createInterface } = require('readline');
-const { spawn, fork } = require('child_process');
-const { fileURLToPath } = require('url');
+import { homedir } from 'os';
+import {resolve, dirname} from 'path';
+import {createInterface} from 'readline';
+import { fork } from 'child_process';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 
 
